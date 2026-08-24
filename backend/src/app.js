@@ -1,4 +1,5 @@
 import express from "express";
+import expenseRoutes from "./routes/expenseRoutes.js";
 
 const app = express();
 
@@ -8,13 +9,6 @@ app.get("/", (req, res) => {
   res.send("ExpenseFlow API is running");
 });
 
-app.post("/api/expenses", (req, res) => {
-  console.log(req.body);
-
-  res.json({
-    message: "Expense received",
-    expense: req.body
-  });
-});
+app.use("/api/expenses", expenseRoutes);
 
 export default app;
