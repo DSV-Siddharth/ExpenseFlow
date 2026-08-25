@@ -1,7 +1,16 @@
+import "dotenv/config";
 import app from "./app.js";
+import pool from "./config/db.js";
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+
+  try {
+    const result = await pool.query("SELECT NOW()");
+    console.log("PostgreSQL connected:", result.rows[0]);
+  } catch (error) {
+    console.error("PostgreSQL connection failed:", error.message);
+  }
 });
