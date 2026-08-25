@@ -1,20 +1,12 @@
 import pool from "../config/db.js";
 
-// CREATE an expense
-export const createExpense = async (req, res) => {
-  const { description, amount, paid_by } = req.body;
-
-  // Validate required fields
-  if (!description || !amount || !paid_by) {
-    return res.status(400).json({
-      message: "description, amount and paid_by are required"
-    });
-  }
-
+// CREATE EXPENSE
+const createExpense = async (req, res) => {
   try {
+    const { description, amount, paid_by } = req.body;
+
     const result = await pool.query(
-      `INSERT INTO expenses
-       (description, amount, paid_by)
+      `INSERT INTO expenses (description, amount, paid_by)
        VALUES ($1, $2, $3)
        RETURNING *`,
       [description, amount, paid_by]
@@ -28,19 +20,17 @@ export const createExpense = async (req, res) => {
     console.error("Error creating expense:", error);
 
     res.status(500).json({
-      message: "Failed to create expense"
+      message: "Server error"
     });
   }
 };
 
-
-// GET all expenses
-export const getExpenses = async (req, res) => {
+// GET ALL EXPENSES
+const getExpenses = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT *
-       FROM expenses
-       ORDER BY created_at DESC`
+      `SELECT * FROM expenses
+       ORDER BY id ASC`
     );
 
     res.status(200).json({
@@ -51,20 +41,18 @@ export const getExpenses = async (req, res) => {
     console.error("Error fetching expenses:", error);
 
     res.status(500).json({
-      message: "Failed to fetch expenses"
+      message: "Server error"
     });
   }
 };
 
-
-// GET one expense by ID
-export const getExpenseById = async (req, res) => {
-  const { id } = req.params;
-
+// GET ONE EXPENSE BY ID
+const getExpenseById = async (req, res) => {
   try {
+    const { id } = req.params;
+
     const result = await pool.query(
-      `SELECT *
-       FROM expenses
+      `SELECT * FROM expenses
        WHERE id = $1`,
       [id]
     );
@@ -83,7 +71,81 @@ export const getExpenseById = async (req, res) => {
     console.error("Error fetching expense:", error);
 
     res.status(500).json({
-      message: "Failed to fetch expense"
+      message: "Server error"
     });
   }
+};
+
+// UPDATE EXPENSE
+const updateExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description, amount, paid_by } = req.body;
+
+    const result = await pool.query(
+      `UPDATE expenses
+       SET description = $1,
+           amount = $2,
+           paid_by = $3
+       WHERE id = $4
+       RETURNING *`,
+      [description, amount, paid_by, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Expense not found"
+      });
+    }
+
+    res.status(200).json({
+      message: "Expense updated successfully",
+      expense: result.rows[0]
+    });
+  } catch (error) {
+    console.error("Error updating expense:", error);
+
+    res.status(500).json({
+      message: "Server error"
+    });
+  }
+};
+
+// DELETE EXPENSE
+const deleteExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `DELETE FROM expenses
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Expense not found"
+      });
+    }
+
+    res.status(200).json({
+      message: "Expense deleted successfully",
+      expense: result.rows[0]
+    });
+  } catch (error) {
+    console.error("Error deleting expense:", error);
+
+    res.status(500).json({
+      message: "Server error"
+    });
+  }
+};
+
+export {
+  createExpense,
+  getExpenses,
+  getExpenseById,
+  updateExpense,
+  deleteExpense
 };
