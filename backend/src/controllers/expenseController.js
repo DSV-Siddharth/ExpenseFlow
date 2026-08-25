@@ -4,7 +4,6 @@ import pool from "../config/db.js";
 const createExpense = async (req, res, next) => {
   try {
     const { description, amount, paid_by } = req.body;
-
     const userId = req.user.userId;
 
     const result = await pool.query(
@@ -16,7 +15,7 @@ const createExpense = async (req, res, next) => {
 
     res.status(201).json({
       message: "Expense created successfully",
-      expense: result.rows[0]
+      expense: result.rows[0],
     });
   } catch (error) {
     next(error);
@@ -29,7 +28,8 @@ const getExpenses = async (req, res, next) => {
     const userId = req.user.userId;
 
     const result = await pool.query(
-      `SELECT * FROM expenses
+      `SELECT *
+       FROM expenses
        WHERE user_id = $1
        ORDER BY id ASC`,
       [userId]
@@ -37,7 +37,7 @@ const getExpenses = async (req, res, next) => {
 
     res.status(200).json({
       message: "Expenses fetched successfully",
-      expenses: result.rows
+      expenses: result.rows,
     });
   } catch (error) {
     next(error);
@@ -50,29 +50,31 @@ const getExpenseById = async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.userId;
 
-    // Validate ID
-    if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+    const expenseId = Number(id);
+
+    if (!Number.isInteger(expenseId) || expenseId <= 0) {
       return res.status(400).json({
-        message: "Invalid expense ID"
+        message: "Invalid expense ID",
       });
     }
 
     const result = await pool.query(
-      `SELECT * FROM expenses
+      `SELECT *
+       FROM expenses
        WHERE id = $1
        AND user_id = $2`,
-      [id, userId]
+      [expenseId, userId]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
-        message: "Expense not found"
+        message: "Expense not found",
       });
     }
 
     res.status(200).json({
       message: "Expense fetched successfully",
-      expense: result.rows[0]
+      expense: result.rows[0],
     });
   } catch (error) {
     next(error);
@@ -86,11 +88,32 @@ const updateExpense = async (req, res, next) => {
     const { description, amount, paid_by } = req.body;
 
     const userId = req.user.userId;
+    const expenseId = Number(id);
 
-    // Validate ID
-    if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+    // Validate expense ID
+    if (!Number.isInteger(expenseId) || expenseId <= 0) {
       return res.status(400).json({
-        message: "Invalid expense ID"
+        message: "Invalid expense ID",
+      });
+    }
+
+    // Validate required fields
+    if (
+      description === undefined ||
+      amount === undefined ||
+      paid_by === undefined
+    ) {
+      return res.status(400).json({
+        message: "Description, amount and paid_by are required",
+      });
+    }
+
+    // Validate amount
+    const numericAmount = Number(amount);
+
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({
+        message: "Amount must be a valid number greater than 0",
       });
     }
 
@@ -102,20 +125,28 @@ const updateExpense = async (req, res, next) => {
        WHERE id = $4
        AND user_id = $5
        RETURNING *`,
-      [description, amount, paid_by, id, userId]
+      [
+        description,
+        numericAmount,
+        paid_by,
+        expenseId,
+        userId,
+      ]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
-        message: "Expense not found"
+        message: "Expense not found",
       });
     }
 
     res.status(200).json({
       message: "Expense updated successfully",
-      expense: result.rows[0]
+      expense: result.rows[0],
     });
   } catch (error) {
+    console.error("UPDATE EXPENSE ERROR:", error);
+
     next(error);
   }
 };
@@ -124,13 +155,14 @@ const updateExpense = async (req, res, next) => {
 const deleteExpense = async (req, res, next) => {
   try {
     const { id } = req.params;
-
     const userId = req.user.userId;
 
-    // Validate ID
-    if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+    const expenseId = Number(id);
+
+    // Validate expense ID
+    if (!Number.isInteger(expenseId) || expenseId <= 0) {
       return res.status(400).json({
-        message: "Invalid expense ID"
+        message: "Invalid expense ID",
       });
     }
 
@@ -139,18 +171,18 @@ const deleteExpense = async (req, res, next) => {
        WHERE id = $1
        AND user_id = $2
        RETURNING *`,
-      [id, userId]
+      [expenseId, userId]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
-        message: "Expense not found"
+        message: "Expense not found",
       });
     }
 
     res.status(200).json({
       message: "Expense deleted successfully",
-      expense: result.rows[0]
+      expense: result.rows[0],
     });
   } catch (error) {
     next(error);
@@ -162,5 +194,5 @@ export {
   getExpenses,
   getExpenseById,
   updateExpense,
-  deleteExpense
+  deleteExpense,
 };
