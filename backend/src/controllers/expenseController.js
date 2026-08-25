@@ -1,15 +1,17 @@
 import pool from "../config/db.js";
 
 // CREATE EXPENSE
-const createExpense = async (req, res) => {
+const createExpense = async (req, res, next) => {
   try {
     const { description, amount, paid_by } = req.body;
 
+    const userId = req.user.userId;
+
     const result = await pool.query(
-      `INSERT INTO expenses (description, amount, paid_by)
-       VALUES ($1, $2, $3)
+      `INSERT INTO expenses (description, amount, paid_by, user_id)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [description, amount, paid_by]
+      [description, amount, paid_by, userId]
     );
 
     res.status(201).json({
@@ -17,20 +19,20 @@ const createExpense = async (req, res) => {
       expense: result.rows[0]
     });
   } catch (error) {
-    console.error("Error creating expense:", error);
-
-    res.status(500).json({
-      message: "Server error"
-    });
+    next(error);
   }
 };
 
 // GET ALL EXPENSES
-const getExpenses = async (req, res) => {
+const getExpenses = async (req, res, next) => {
   try {
+    const userId = req.user.userId;
+
     const result = await pool.query(
       `SELECT * FROM expenses
-       ORDER BY id ASC`
+       WHERE user_id = $1
+       ORDER BY id ASC`,
+      [userId]
     );
 
     res.status(200).json({
@@ -38,23 +40,28 @@ const getExpenses = async (req, res) => {
       expenses: result.rows
     });
   } catch (error) {
-    console.error("Error fetching expenses:", error);
-
-    res.status(500).json({
-      message: "Server error"
-    });
+    next(error);
   }
 };
 
 // GET ONE EXPENSE BY ID
-const getExpenseById = async (req, res) => {
+const getExpenseById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const userId = req.user.userId;
+
+    // Validate ID
+    if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+      return res.status(400).json({
+        message: "Invalid expense ID"
+      });
+    }
 
     const result = await pool.query(
       `SELECT * FROM expenses
-       WHERE id = $1`,
-      [id]
+       WHERE id = $1
+       AND user_id = $2`,
+      [id, userId]
     );
 
     if (result.rows.length === 0) {
@@ -68,19 +75,24 @@ const getExpenseById = async (req, res) => {
       expense: result.rows[0]
     });
   } catch (error) {
-    console.error("Error fetching expense:", error);
-
-    res.status(500).json({
-      message: "Server error"
-    });
+    next(error);
   }
 };
 
 // UPDATE EXPENSE
-const updateExpense = async (req, res) => {
+const updateExpense = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { description, amount, paid_by } = req.body;
+
+    const userId = req.user.userId;
+
+    // Validate ID
+    if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+      return res.status(400).json({
+        message: "Invalid expense ID"
+      });
+    }
 
     const result = await pool.query(
       `UPDATE expenses
@@ -88,8 +100,9 @@ const updateExpense = async (req, res) => {
            amount = $2,
            paid_by = $3
        WHERE id = $4
+       AND user_id = $5
        RETURNING *`,
-      [description, amount, paid_by, id]
+      [description, amount, paid_by, id, userId]
     );
 
     if (result.rows.length === 0) {
@@ -103,24 +116,30 @@ const updateExpense = async (req, res) => {
       expense: result.rows[0]
     });
   } catch (error) {
-    console.error("Error updating expense:", error);
-
-    res.status(500).json({
-      message: "Server error"
-    });
+    next(error);
   }
 };
 
 // DELETE EXPENSE
-const deleteExpense = async (req, res) => {
+const deleteExpense = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    const userId = req.user.userId;
+
+    // Validate ID
+    if (!Number.isInteger(Number(id)) || Number(id) <= 0) {
+      return res.status(400).json({
+        message: "Invalid expense ID"
+      });
+    }
 
     const result = await pool.query(
       `DELETE FROM expenses
        WHERE id = $1
+       AND user_id = $2
        RETURNING *`,
-      [id]
+      [id, userId]
     );
 
     if (result.rows.length === 0) {
@@ -134,11 +153,7 @@ const deleteExpense = async (req, res) => {
       expense: result.rows[0]
     });
   } catch (error) {
-    console.error("Error deleting expense:", error);
-
-    res.status(500).json({
-      message: "Server error"
-    });
+    next(error);
   }
 };
 

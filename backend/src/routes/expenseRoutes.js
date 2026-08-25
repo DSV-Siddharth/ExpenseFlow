@@ -1,28 +1,34 @@
 import express from "express";
 
 import {
-  createExpense,
-  getExpenses,
-  getExpenseById,
-  updateExpense,
-  deleteExpense
+    createExpense,
+    getExpenses,
+    getExpenseById,
+    updateExpense,
+    deleteExpense
 } from "../controllers/expenseController.js";
+
+import validateExpense from "../middleware/validateExpense.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// CREATE EXPENSE
-router.post("/", createExpense);
+// Protect all expense routes with JWT authentication
+router.use(authMiddleware);
 
-// GET ALL EXPENSES
+// Create expense
+router.post("/", validateExpense, createExpense);
+
+// Get all expenses
 router.get("/", getExpenses);
 
-// GET ONE EXPENSE
+// Get single expense
 router.get("/:id", getExpenseById);
 
-// UPDATE EXPENSE
-router.put("/:id", updateExpense);
+// Update expense
+router.put("/:id", validateExpense, updateExpense);
 
-// DELETE EXPENSE
+// Delete expense
 router.delete("/:id", deleteExpense);
 
 export default router;
