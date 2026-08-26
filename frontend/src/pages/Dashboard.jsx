@@ -72,6 +72,7 @@ function Dashboard() {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState("");
+  const [category, setCategory] = useState("Other");
 
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -114,18 +115,26 @@ function Dashboard() {
     const totals = {};
 
     expenses.forEach((expense) => {
-      const category = expense.category || "Other";
+      const expenseCategory = expense.category || "Other";
 
-      totals[category] =
-        (totals[category] || 0) + Number(expense.amount || 0);
+      totals[expenseCategory] =
+        (totals[expenseCategory] || 0) +
+        Number(expense.amount || 0);
     });
 
     return Object.entries(totals)
-      .map(([name, value], index) => ({
-        name,
-        value: Number(value.toFixed(2)),
-        color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
-      }))
+      .map(([name, value]) => {
+        const categoryIndex = CATEGORY_NAMES.indexOf(name);
+
+        return {
+          name,
+          value: Number(value.toFixed(2)),
+          color:
+            CATEGORY_COLORS[
+              categoryIndex >= 0 ? categoryIndex : CATEGORY_COLORS.length - 1
+            ],
+        };
+      })
       .sort((a, b) => b.value - a.value);
   }, [expenses]);
 
@@ -162,10 +171,11 @@ function Dashboard() {
           ?.toLowerCase()
           .includes(searchTerm.toLowerCase());
 
-      const category = expense.category || "Other";
+      const expenseCategory = expense.category || "Other";
 
       const matchesCategory =
-        categoryFilter === "All" || category === categoryFilter;
+        categoryFilter === "All" ||
+        expenseCategory === categoryFilter;
 
       return matchesSearch && matchesCategory;
     });
@@ -208,12 +218,18 @@ function Dashboard() {
     setDescription("");
     setAmount("");
     setPaidBy("");
+    setCategory("Other");
   };
 
   const handleAddExpense = async (event) => {
     event.preventDefault();
 
-    if (!description.trim() || !amount || !paidBy.trim()) {
+    if (
+      !description.trim() ||
+      !amount ||
+      !paidBy.trim() ||
+      !category
+    ) {
       setError("Please fill in all expense fields.");
       return;
     }
@@ -226,6 +242,7 @@ function Dashboard() {
         description: description.trim(),
         amount: Number(amount),
         paid_by: paidBy.trim(),
+        category,
       });
 
       resetForm();
@@ -242,7 +259,11 @@ function Dashboard() {
   };
 
   const handleStartEdit = (expense) => {
-    setEditingExpense(expense);
+    setEditingExpense({
+      ...expense,
+      category: expense.category || "Other",
+    });
+
     setError("");
   };
 
@@ -259,6 +280,7 @@ function Dashboard() {
         description: editingExpense.description,
         amount: Number(editingExpense.amount),
         paid_by: editingExpense.paid_by,
+        category: editingExpense.category || "Other",
       });
 
       setEditingExpense(null);
@@ -374,7 +396,10 @@ function Dashboard() {
                 <span>{item.label}</span>
 
                 {activeSection === item.id && (
-                  <ChevronRight size={15} className="navigation-arrow" />
+                  <ChevronRight
+                    size={15}
+                    className="navigation-arrow"
+                  />
                 )}
               </button>
             );
@@ -424,6 +449,7 @@ function Dashboard() {
             className="add-expense-button"
             onClick={() => {
               setError("");
+              resetForm();
               setShowAddModal(true);
             }}
           >
@@ -447,7 +473,9 @@ function Dashboard() {
             <>
               <section className="welcome-section">
                 <div>
-                  <span className="eyebrow">YOUR MONEY, SIMPLIFIED</span>
+                  <span className="eyebrow">
+                    YOUR MONEY, SIMPLIFIED
+                  </span>
 
                   <h1>
                     Good to see you,{" "}
@@ -554,10 +582,15 @@ function Dashboard() {
                     {monthlyData.length === 0 ? (
                       <div className="chart-empty">
                         <BarChart3 size={30} />
-                        <span>Add expenses to see your trend.</span>
+                        <span>
+                          Add expenses to see your trend.
+                        </span>
                       </div>
                     ) : (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer
+                        width="100%"
+                        height="100%"
+                      >
                         <BarChart data={monthlyData}>
                           <CartesianGrid
                             strokeDasharray="3 3"
@@ -612,7 +645,10 @@ function Dashboard() {
                     ) : (
                       <>
                         <div className="pie-wrapper">
-                          <ResponsiveContainer width="100%" height="100%">
+                          <ResponsiveContainer
+                            width="100%"
+                            height="100%"
+                          >
                             <RechartsPieChart>
                               <Pie
                                 data={categoryData}
@@ -647,24 +683,24 @@ function Dashboard() {
                         </div>
 
                         <div className="category-list">
-                          {categoryData.slice(0, 5).map((category) => (
+                          {categoryData.slice(0, 5).map((item) => (
                             <div
                               className="category-row"
-                              key={category.name}
+                              key={item.name}
                             >
                               <div>
                                 <span
                                   className="category-dot"
                                   style={{
-                                    backgroundColor: category.color,
+                                    backgroundColor: item.color,
                                   }}
                                 />
 
-                                <span>{category.name}</span>
+                                <span>{item.name}</span>
                               </div>
 
                               <strong>
-                                {formatCurrency(category.value)}
+                                {formatCurrency(item.value)}
                               </strong>
                             </div>
                           ))}
@@ -706,7 +742,10 @@ function Dashboard() {
 
                     <button
                       className="empty-action"
-                      onClick={() => setShowAddModal(true)}
+                      onClick={() => {
+                        resetForm();
+                        setShowAddModal(true);
+                      }}
                     >
                       <Plus size={17} />
                       Add expense
@@ -715,14 +754,19 @@ function Dashboard() {
                 ) : (
                   <div className="recent-list">
                     {recentExpenses.map((expense) => (
-                      <div className="recent-row" key={expense.id}>
+                      <div
+                        className="recent-row"
+                        key={expense.id}
+                      >
                         <div className="expense-leading-icon">
                           <Wallet size={17} />
                         </div>
 
                         <div className="recent-description">
                           <strong>{expense.description}</strong>
+
                           <span>
+                            {expense.category || "Other"} ·{" "}
                             {expense.paid_by} ·{" "}
                             {formatDate(
                               expense.created_at || expense.date
@@ -736,7 +780,9 @@ function Dashboard() {
 
                         <div className="row-actions">
                           <button
-                            onClick={() => handleStartEdit(expense)}
+                            onClick={() =>
+                              handleStartEdit(expense)
+                            }
                             title="Edit expense"
                           >
                             <Edit3 size={16} />
@@ -765,12 +811,17 @@ function Dashboard() {
                 <div>
                   <span className="eyebrow">TRANSACTIONS</span>
                   <h1>All expenses</h1>
-                  <p>Search and manage everything you've spent.</p>
+                  <p>
+                    Search and manage everything you've spent.
+                  </p>
                 </div>
 
                 <button
                   className="add-expense-button"
-                  onClick={() => setShowAddModal(true)}
+                  onClick={() => {
+                    resetForm();
+                    setShowAddModal(true);
+                  }}
                 >
                   <Plus size={18} />
                   Add expense
@@ -799,9 +850,9 @@ function Dashboard() {
                 >
                   <option value="All">All categories</option>
 
-                  {CATEGORY_NAMES.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
+                  {CATEGORY_NAMES.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
                     </option>
                   ))}
                 </select>
@@ -825,6 +876,7 @@ function Dashboard() {
                   <div className="expense-table">
                     <div className="expense-table-header">
                       <span>DESCRIPTION</span>
+                      <span>CATEGORY</span>
                       <span>PAID BY</span>
                       <span>DATE</span>
                       <span>AMOUNT</span>
@@ -843,6 +895,10 @@ function Dashboard() {
 
                           <strong>{expense.description}</strong>
                         </div>
+
+                        <span>
+                          {expense.category || "Other"}
+                        </span>
 
                         <span>{expense.paid_by}</span>
 
@@ -899,6 +955,7 @@ function Dashboard() {
                 <div className="stat-card">
                   <div className="stat-card-header">
                     <span>Total spending</span>
+
                     <div className="stat-icon">
                       <DollarSign size={18} />
                     </div>
@@ -910,6 +967,7 @@ function Dashboard() {
                 <div className="stat-card">
                   <div className="stat-card-header">
                     <span>Transactions</span>
+
                     <div className="stat-icon soft-purple">
                       <CreditCard size={18} />
                     </div>
@@ -921,6 +979,7 @@ function Dashboard() {
                 <div className="stat-card">
                   <div className="stat-card-header">
                     <span>Average</span>
+
                     <div className="stat-icon soft-green">
                       <TrendingUp size={18} />
                     </div>
@@ -946,7 +1005,10 @@ function Dashboard() {
                         <span>No spending data yet.</span>
                       </div>
                     ) : (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer
+                        width="100%"
+                        height="100%"
+                      >
                         <BarChart data={monthlyData}>
                           <CartesianGrid
                             strokeDasharray="3 3"
@@ -996,32 +1058,31 @@ function Dashboard() {
                         <span>No category data yet.</span>
                       </div>
                     ) : (
-                      categoryData.map((category) => {
+                      categoryData.map((item) => {
                         const percentage =
                           totalSpending > 0
-                            ? (category.value / totalSpending) * 100
+                            ? (item.value / totalSpending) * 100
                             : 0;
 
                         return (
                           <div
                             className="analytics-category-row"
-                            key={category.name}
+                            key={item.name}
                           >
                             <div className="analytics-category-top">
                               <div>
                                 <span
                                   className="category-dot"
                                   style={{
-                                    backgroundColor:
-                                      category.color,
+                                    backgroundColor: item.color,
                                   }}
                                 />
 
-                                <strong>{category.name}</strong>
+                                <strong>{item.name}</strong>
                               </div>
 
                               <span>
-                                {formatCurrency(category.value)}
+                                {formatCurrency(item.value)}
                               </span>
                             </div>
 
@@ -1030,7 +1091,7 @@ function Dashboard() {
                                 className="progress-fill"
                                 style={{
                                   width: `${percentage}%`,
-                                  backgroundColor: category.color,
+                                  backgroundColor: item.color,
                                 }}
                               />
                             </div>
@@ -1070,12 +1131,16 @@ function Dashboard() {
                   <div className="profile-details">
                     <div>
                       <span>Name</span>
-                      <strong>{user?.name || "Not available"}</strong>
+                      <strong>
+                        {user?.name || "Not available"}
+                      </strong>
                     </div>
 
                     <div>
                       <span>Email</span>
-                      <strong>{user?.email || "Not available"}</strong>
+                      <strong>
+                        {user?.email || "Not available"}
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -1137,6 +1202,7 @@ function Dashboard() {
             <form onSubmit={handleAddExpense}>
               <label>
                 Description
+
                 <input
                   type="text"
                   placeholder="e.g. Dinner with friends"
@@ -1150,6 +1216,7 @@ function Dashboard() {
 
               <label>
                 Amount
+
                 <div className="amount-input">
                   <span>₹</span>
 
@@ -1168,7 +1235,26 @@ function Dashboard() {
               </label>
 
               <label>
+                Category
+
+                <select
+                  value={category}
+                  onChange={(event) =>
+                    setCategory(event.target.value)
+                  }
+                  required
+                >
+                  {CATEGORY_NAMES.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 Paid by
+
                 <input
                   type="text"
                   placeholder="e.g. Siddharth"
@@ -1219,6 +1305,7 @@ function Dashboard() {
             <form onSubmit={handleUpdateExpense}>
               <label>
                 Description
+
                 <input
                   type="text"
                   value={editingExpense.description || ""}
@@ -1234,6 +1321,7 @@ function Dashboard() {
 
               <label>
                 Amount
+
                 <div className="amount-input">
                   <span>₹</span>
 
@@ -1254,7 +1342,29 @@ function Dashboard() {
               </label>
 
               <label>
+                Category
+
+                <select
+                  value={editingExpense.category || "Other"}
+                  onChange={(event) =>
+                    setEditingExpense({
+                      ...editingExpense,
+                      category: event.target.value,
+                    })
+                  }
+                  required
+                >
+                  {CATEGORY_NAMES.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 Paid by
+
                 <input
                   type="text"
                   value={editingExpense.paid_by || ""}
