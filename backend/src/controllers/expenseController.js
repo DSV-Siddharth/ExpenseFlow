@@ -3,14 +3,21 @@ import pool from "../config/db.js";
 // CREATE EXPENSE
 const createExpense = async (req, res, next) => {
   try {
-    const { description, amount, paid_by } = req.body;
+    const { description, amount, paid_by, category } = req.body;
     const userId = req.user.userId;
 
     const result = await pool.query(
-      `INSERT INTO expenses (description, amount, paid_by, user_id)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO expenses
+       (description, amount, paid_by, category, user_id)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [description, amount, paid_by, userId]
+      [
+        description,
+        amount,
+        paid_by,
+        category || "Other",
+        userId,
+      ]
     );
 
     res.status(201).json({
@@ -85,19 +92,22 @@ const getExpenseById = async (req, res, next) => {
 const updateExpense = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { description, amount, paid_by } = req.body;
+    const {
+      description,
+      amount,
+      paid_by,
+      category,
+    } = req.body;
 
     const userId = req.user.userId;
     const expenseId = Number(id);
 
-    // Validate expense ID
     if (!Number.isInteger(expenseId) || expenseId <= 0) {
       return res.status(400).json({
         message: "Invalid expense ID",
       });
     }
 
-    // Validate required fields
     if (
       description === undefined ||
       amount === undefined ||
@@ -108,7 +118,6 @@ const updateExpense = async (req, res, next) => {
       });
     }
 
-    // Validate amount
     const numericAmount = Number(amount);
 
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
@@ -121,14 +130,16 @@ const updateExpense = async (req, res, next) => {
       `UPDATE expenses
        SET description = $1,
            amount = $2,
-           paid_by = $3
-       WHERE id = $4
-       AND user_id = $5
+           paid_by = $3,
+           category = $4
+       WHERE id = $5
+       AND user_id = $6
        RETURNING *`,
       [
         description,
         numericAmount,
         paid_by,
+        category || "Other",
         expenseId,
         userId,
       ]
@@ -159,7 +170,6 @@ const deleteExpense = async (req, res, next) => {
 
     const expenseId = Number(id);
 
-    // Validate expense ID
     if (!Number.isInteger(expenseId) || expenseId <= 0) {
       return res.status(400).json({
         message: "Invalid expense ID",
