@@ -2,6 +2,27 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 
+// Small helper for transient PostgreSQL connection resets
+const queryWithRetry = async (query, values = []) => {
+    try {
+        return await pool.query(query, values);
+    } catch (error) {
+        const isConnectionError =
+            error.code === "ECONNRESET" ||
+            error.code === "57P01" ||
+            error.message?.includes("Connection terminated unexpectedly");
+
+        if (!isConnectionError) {
+            throw error;
+        }
+
+        console.log("Database connection reset. Retrying query...");
+
+        return await pool.query(query, values);
+    }
+};
+
+// REGISTER
 export const register = async (req, res, next) => {
     try {
         const { name, email, password } = req.body;
@@ -12,7 +33,7 @@ export const register = async (req, res, next) => {
             });
         }
 
-        const existingUser = await pool.query(
+        const existingUser = await queryWithRetry(
             "SELECT id FROM users WHERE email = $1",
             [email]
         );
@@ -25,7 +46,7 @@ export const register = async (req, res, next) => {
 
         const passwordHash = await bcrypt.hash(password, 10);
 
-        const result = await pool.query(
+        const result = await queryWithRetry(
             `INSERT INTO users (name, email, password_hash)
              VALUES ($1, $2, $3)
              RETURNING id, name, email, created_at`,
@@ -41,6 +62,7 @@ export const register = async (req, res, next) => {
     }
 };
 
+// LOGIN
 export const login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
@@ -51,8 +73,8 @@ export const login = async (req, res, next) => {
             });
         }
 
-        const result = await pool.query(
-            "SELECT * FROM users WHERE email = $1",
+        const result = await queryWithRetry(
+            "SELECT id, name, email, password_hash FROM users WHERE email = $1",
             [email]
         );
 
@@ -86,7 +108,7 @@ export const login = async (req, res, next) => {
             }
         );
 
-        res.json({
+        res.status(200).json({
             message: "Login successful",
             token,
             user: {
